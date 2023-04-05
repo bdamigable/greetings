@@ -19,20 +19,29 @@
  * @copyright   2023 Bryan Amigable <Bryan.A@myqatlearning.online>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-require_once('../../config.php');
-require_once($CFG->dirroot. '/local/greetings/lib.php');
+function local_greetings_get_greeting($user) {
+    if ($user == null) {
+        return get_string('greetinguser', 'local_greetings');
+    }
 
-$context = context_system::instance();
-$PAGE->set_context($context);
-$PAGE->set_url(new moodle_url('/local/greetings/index.php'));
-$PAGE->set_pagelayout('standard');
-$PAGE->set_title($SITE->fullname);
-$PAGE->set_heading(get_string('pluginname', 'local_greetings'));
+    $country = $user->country;
+    switch ($country) {
+        case 'ES':
+            $langstr = 'greetinguseres';
+            break;
+        case 'NZ':
+            $langstr = 'greetingusernz';
+            break;
+        case 'AU':
+            $langstr = 'greetinguserau';
+            break;
+        case 'FJ':
+            $langstr = 'greetinguserfj';
+            break;
+        default:
+            $langstr = 'greetingloggedinuser';
+            break;
+    }
 
-echo $OUTPUT->header();
-if (isloggedin()) {
-    echo local_greetings_get_greeting($USER);
-} else {
-    echo get_string('greetinguser', 'local_greetings');
+    return get_string($langstr, 'local_greetings', fullname($user));
 }
-echo $OUTPUT->footer();
