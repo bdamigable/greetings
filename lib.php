@@ -66,6 +66,6 @@ function local_greetings_extend_navigation(global_navigation $root) {
         new moodle_url('/local/greetings/index.php')
     );
 
-    $node->showinflatnavigation = true;
+    $node->showinflatnavigation = get_config('local_greetings', 'showinnavigation');
     $root->add_node($node);
 }
