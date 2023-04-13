@@ -29,31 +29,44 @@ $PAGE->set_url(new moodle_url('/local/greetings/index.php'));
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title($SITE->fullname);
 $PAGE->set_heading(get_string('pluginname', 'local_greetings'));
+
 require_login();
+
 if (isguestuser()) {
     throw new moodle_exception('noguest');
 }
 
-$messageform = new local_greetings_message_form();
-// Validation if user has capability to post messages
+// Validation if user has capability
 $allowpost = has_capability('local/greetings:postmessages', $context);
-// Validation if user has capability to view messages
 $viewpost = has_capability('local/greetings:viewmessages', $context);
-// Validation if user has capability to delete messages
-$deletepost = has_capability('local/greetings:deletemessages', $context);
+$deletepost = has_capability('local/greetings:deleteownmessage', $context);
+$deleteanypost = has_capability('local/greetings:deleteanymessage', $context);
+
 // Action to delete post
 $action = optional_param('action', '', PARAM_TEXT);
 if ($action == 'del') {
+    require_sesskey();
+
     $id = required_param('id', PARAM_TEXT);
 
-    if ($deletepost) {
+    if ($deletepost || $deleteanypost) {
         $params = array('id' => $id);
 
+        // Users without permission should only delete their own post
+        if(!$deleteanypost) {
+            $params += ['userid' => $USER->id];
+        }
         $DB->delete_records('local_greetings_msgs', $params);
+
+        redirect($PAGE->url);
     }
 }
+
+$messageform = new local_greetings_message_form();
+
 if ($data = $messageform->get_data()) {
     require_capability('local/greetings:postmessages', $context);
+
     $message = required_param('message', PARAM_TEXT);
 
     if (!empty($message)) {
@@ -67,28 +80,32 @@ if ($data = $messageform->get_data()) {
 }
 
 echo $OUTPUT->header();
+
 if (isloggedin()) {
     echo local_greetings_get_greeting($USER);
 } else {
     echo get_string('greetinguser', 'local_greetings');
 }
+
 // Calls validation before displaying the message form
 if ($allowpost) {
     $messageform->display();
 }
-$userfields = \core_user\fields::for_name()->with_identity($context);
-$userfieldssql = $userfields->get_sql('u');
-
-$sql = "SELECT m.id, m.message, m.timecreated, m.userid {$userfieldssql->selects}
-          FROM {local_greetings_msgs} m
-     LEFT JOIN {user} u ON u.id = m.userid
-      ORDER BY timecreated DESC";
-
-$messages = $DB->get_records_sql($sql);
 
 // Calls validation before displaying the messages
 if ($viewpost) {
+    $userfields = \core_user\fields::for_name()->with_identity($context);
+    $userfieldssql = $userfields->get_sql('u');
+
+    $sql = "SELECT m.id, m.message, m.timecreated, m.userid {$userfieldssql->selects}
+              FROM {local_greetings_msgs} m
+         LEFT JOIN {user} u ON u.id = m.userid
+          ORDER BY timecreated DESC";
+
+    $messages = $DB->get_records_sql($sql);
+
     echo $OUTPUT->box_start('card-columns');
+
     foreach ($messages as $m) {
         echo html_writer::start_tag('div', array('class' => 'card'));
         echo html_writer::start_tag('div', array('class' => 'card-body'));
@@ -97,12 +114,13 @@ if ($viewpost) {
         echo html_writer::start_tag('p', array('class' => 'card-text'));
         echo html_writer::tag('small', userdate($m->timecreated), array('class' => 'text-muted'));
         echo html_writer::end_tag('p');
-        if ($deletepost) {
+
+        if ($deleteanypost || ($deletepost && $m->userid == $USER->id)) {
             echo html_writer::start_tag('p', array('class' => 'card-footer text-center'));
             echo html_writer::link(
                 new moodle_url(
                     '/local/greetings/index.php',
-                    array('action' => 'del', 'id' => $m->id)
+                    array('action' => 'del', 'id' => $m->id, 'sesskey' => sesskey())
                 ),
                 $OUTPUT->pix_icon('t/delete', '') . get_string('delete')
             );
