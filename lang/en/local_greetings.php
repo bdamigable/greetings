@@ -33,3 +33,6 @@ $string['greetingusernz'] = 'Kia Ora, {$a}.';
 $string['greetingloggedinuser'] = 'Greetings, {$a}.';
 $string['yourmessage'] = 'Your message';
 $string['postedby'] = 'Posted by {$a}.';
+$string['greetings:viewmessages'] = 'View messages on the Greetings wall';
+$string['greetings:postmessages'] = 'Post a new message on the Greetings wall';
+$string['greetings:deletemessages'] = 'Delete messages on the Greetings wall';

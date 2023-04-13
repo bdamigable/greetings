@@ -35,7 +35,25 @@ if (isguestuser()) {
 }
 
 $messageform = new local_greetings_message_form();
+// Validation if user has capability to post messages
+$allowpost = has_capability('local/greetings:postmessages', $context);
+// Validation if user has capability to view messages
+$viewpost = has_capability('local/greetings:viewmessages', $context);
+// Validation if user has capability to delete messages
+$deletepost = has_capability('local/greetings:deletemessages', $context);
+// Action to delete post
+$action = optional_param('action', '', PARAM_TEXT);
+if ($action == 'del') {
+    $id = required_param('id', PARAM_TEXT);
+
+    if ($deletepost) {
+        $params = array('id' => $id);
+
+        $DB->delete_records('local_greetings_msgs', $params);
+    }
+}
 if ($data = $messageform->get_data()) {
+    require_capability('local/greetings:postmessages', $context);
     $message = required_param('message', PARAM_TEXT);
 
     if (!empty($message)) {
@@ -54,7 +72,10 @@ if (isloggedin()) {
 } else {
     echo get_string('greetinguser', 'local_greetings');
 }
-$messageform->display();
+// Calls validation before displaying the message form
+if ($allowpost) {
+    $messageform->display();
+}
 $userfields = \core_user\fields::for_name()->with_identity($context);
 $userfieldssql = $userfields->get_sql('u');
 
@@ -64,19 +85,33 @@ $sql = "SELECT m.id, m.message, m.timecreated, m.userid {$userfieldssql->selects
       ORDER BY timecreated DESC";
 
 $messages = $DB->get_records_sql($sql);
-echo $OUTPUT->box_start('card-columns');
 
-foreach ($messages as $m) {
-    echo html_writer::start_tag('div', array('class' => 'card'));
-    echo html_writer::start_tag('div', array('class' => 'card-body'));
-    echo html_writer::tag('p', format_text($m->message, PARAM_TEXT), array('class' => 'card-text'));
-    echo html_writer::tag('p', get_string('postedby', 'local_greetings', $m->firstname), array('class' => 'card-text text-primary mb-0'));
-    echo html_writer::start_tag('p', array('class' => 'card-text'));
-    echo html_writer::tag('small', userdate($m->timecreated), array('class' => 'text-muted'));
-    echo html_writer::end_tag('p');
-    echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div');
+// Calls validation before displaying the messages
+if ($viewpost) {
+    echo $OUTPUT->box_start('card-columns');
+    foreach ($messages as $m) {
+        echo html_writer::start_tag('div', array('class' => 'card'));
+        echo html_writer::start_tag('div', array('class' => 'card-body'));
+        echo html_writer::tag('p', format_text($m->message, FORMAT_PLAIN), array('class' => 'card-text'));
+        echo html_writer::tag('p', get_string('postedby', 'local_greetings', $m->firstname), array('class' => 'card-text text-primary mb-0'));
+        echo html_writer::start_tag('p', array('class' => 'card-text'));
+        echo html_writer::tag('small', userdate($m->timecreated), array('class' => 'text-muted'));
+        echo html_writer::end_tag('p');
+        if ($deletepost) {
+            echo html_writer::start_tag('p', array('class' => 'card-footer text-center'));
+            echo html_writer::link(
+                new moodle_url(
+                    '/local/greetings/index.php',
+                    array('action' => 'del', 'id' => $m->id)
+                ),
+                $OUTPUT->pix_icon('t/delete', '') . get_string('delete')
+            );
+            echo html_writer::end_tag('p');
+        }
+        echo html_writer::end_tag('div');
+        echo html_writer::end_tag('div');        
+    }
+    echo $OUTPUT->box_end();
 }
 
-echo $OUTPUT->box_end();
 echo $OUTPUT->footer();
