@@ -37,6 +37,7 @@ if ($data = $messageform->get_data()) {
         $record = new stdClass;
         $record->message = $message;
         $record->timecreated = time();
+        $record->userid = $USER->id;
 
         $DB->insert_record('local_greetings_msgs', $record);
     }
@@ -49,13 +50,22 @@ if (isloggedin()) {
     echo get_string('greetinguser', 'local_greetings');
 }
 $messageform->display();
-$messages = $DB->get_records('local_greetings_msgs');
+$userfields = \core_user\fields::for_name()->with_identity($context);
+$userfieldssql = $userfields->get_sql('u');
+
+$sql = "SELECT m.id, m.message, m.timecreated, m.userid {$userfieldssql->selects}
+          FROM {local_greetings_msgs} m
+     LEFT JOIN {user} u ON u.id = m.userid
+      ORDER BY timecreated DESC";
+
+$messages = $DB->get_records_sql($sql);
 echo $OUTPUT->box_start('card-columns');
 
 foreach ($messages as $m) {
     echo html_writer::start_tag('div', array('class' => 'card'));
     echo html_writer::start_tag('div', array('class' => 'card-body'));
     echo html_writer::tag('p', $m->message, array('class' => 'card-text'));
+    echo html_writer::tag('p', get_string('postedby', 'local_greetings', $m->firstname), array('class' => 'card-text text-primary mb-0'));
     echo html_writer::start_tag('p', array('class' => 'card-text'));
     echo html_writer::tag('small', userdate($m->timecreated), array('class' => 'text-muted'));
     echo html_writer::end_tag('p');
@@ -64,16 +74,4 @@ foreach ($messages as $m) {
 }
 
 echo $OUTPUT->box_end();
-
-/** foreach ($messages as $m) {
- * echo '<p>' . $m->message . ' ' . $m->timecreated . '</p>';
- * }
- */  
-
-/** if ($data = $messageform->get_data()) {
- * // var_dump($data);
- * $message = required_param('message', PARAM_TEXT);
- * echo $OUTPUT->heading($message, 4);
- * }
- */ 
 echo $OUTPUT->footer();
